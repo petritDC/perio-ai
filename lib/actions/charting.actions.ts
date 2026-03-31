@@ -8,7 +8,11 @@ import type { ToothData } from '@/lib/types/charting'
 import { createNotification } from '@/lib/actions/notification.actions'
 
 export async function createChart(formData: FormData) {
-  await requireRole(['admin', 'dentist', 'hygienist'])
+  try {
+    await requireRole(['admin', 'dentist', 'hygienist'])
+  } catch {
+    return { error: 'You do not have permission to create charts.' }
+  }
   const session = await getSession()
 
   const raw = {

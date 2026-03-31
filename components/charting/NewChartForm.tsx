@@ -41,20 +41,24 @@ export default function NewChartForm({
     }
 
     startTransition(async () => {
-      const result = await createChart(formData)
+      try {
+        const result = await createChart(formData)
 
-      if (result?.error) {
-        setError(result.error)
-        return
+        if (result?.error) {
+          setError(result.error)
+          return
+        }
+
+        if (result?.success && result.id) {
+          router.push(`/charting/${result.id}`)
+          router.refresh()
+          return
+        }
+
+        setError('Could not create chart. Please try again.')
+      } catch {
+        setError('An unexpected error occurred. Please try again.')
       }
-
-      if (result?.success && result.id) {
-        router.push(`/charting/${result.id}`)
-        router.refresh()
-        return
-      }
-
-      setError('Could not create chart. Please try again.')
     })
   }
 
