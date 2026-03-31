@@ -13,40 +13,30 @@ export interface DashboardStats {
 
 export async function getDashboardStats(): Promise<DashboardStats> {
   const supabase = await createClient()
-  const today = new Date().toISOString().slice(0, 10)
-  const todayStart = today + 'T00:00:00Z'
-  const todayEnd = today + 'T23:59:59Z'
-  const nowIso = new Date().toISOString()
+  const { data, error } = await supabase.rpc('get_dashboard_stats')
 
-  const [
-    totalPatientsRes,
-    activePatientsRes,
-    todayApptsRes,
-    upcomingApptsRes,
-    draftChartsRes,
-    finalizedChartsRes,
-    diagnosesRes,
-    activeStaffRes,
-  ] = await Promise.all([
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'patient'),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'patient').eq('status', 'active'),
-    supabase.from('appointments').select('id', { count: 'exact', head: true }).gte('start_time', todayStart).lte('start_time', todayEnd),
-    supabase.from('appointments').select('id', { count: 'exact', head: true }).gte('start_time', nowIso).in('status', ['scheduled', 'confirmed']),
-    supabase.from('periodontal_charts').select('id', { count: 'exact', head: true }).eq('status', 'draft'),
-    supabase.from('periodontal_charts').select('id', { count: 'exact', head: true }).eq('status', 'finalized'),
-    supabase.from('ai_diagnoses').select('id', { count: 'exact', head: true }),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).neq('role', 'patient').eq('status', 'active'),
-  ])
+  if (error || !data) {
+    return {
+      totalPatients: 0,
+      activePatients: 0,
+      todayAppointments: 0,
+      upcomingAppointments: 0,
+      draftCharts: 0,
+      finalizedCharts: 0,
+      totalDiagnoses: 0,
+      activeStaff: 0,
+    }
+  }
 
   return {
-    totalPatients: totalPatientsRes.count ?? 0,
-    activePatients: activePatientsRes.count ?? 0,
-    todayAppointments: todayApptsRes.count ?? 0,
-    upcomingAppointments: upcomingApptsRes.count ?? 0,
-    draftCharts: draftChartsRes.count ?? 0,
-    finalizedCharts: finalizedChartsRes.count ?? 0,
-    totalDiagnoses: diagnosesRes.count ?? 0,
-    activeStaff: activeStaffRes.count ?? 0,
+    totalPatients: data.total_patients ?? 0,
+    activePatients: data.active_patients ?? 0,
+    todayAppointments: data.today_appointments ?? 0,
+    upcomingAppointments: data.upcoming_appointments ?? 0,
+    draftCharts: data.draft_charts ?? 0,
+    finalizedCharts: data.finalized_charts ?? 0,
+    totalDiagnoses: data.total_diagnoses ?? 0,
+    activeStaff: data.active_staff ?? 0,
   }
 }
 
