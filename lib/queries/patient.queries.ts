@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { Patient, PatientListItem, PatientDocument } from '@/lib/types/patient'
+import type { RiskFactors } from '@/lib/types/patient-intake'
 
 export interface PatientListParams {
   search?: string
@@ -45,6 +46,7 @@ export async function getPatient(id: string): Promise<Patient | null> {
   return data as Patient
 }
 
+/** @deprecated Use getPatientWithIntake instead */
 export async function getPatientIntakeData(intakeSubmissionId: string | null) {
   if (!intakeSubmissionId) return null
   const supabase = await createClient()
@@ -54,6 +56,45 @@ export async function getPatientIntakeData(intakeSubmissionId: string | null) {
     .eq('id', intakeSubmissionId)
     .single()
   return data
+}
+
+export interface PatientIntakeData {
+  allergies: string[]
+  medical_history: unknown[]
+  risk_factors: RiskFactors | null
+  current_medications: unknown[]
+  emergency_contacts: unknown[]
+  x_ray_availability: boolean
+  doctor_notes: string | null
+  submitted_at: string
+  status: string
+}
+
+export interface PatientWithIntake extends Patient {
+  intake: PatientIntakeData | null
+}
+
+export async function getPatientWithIntake(id: string): Promise<PatientWithIntake | null> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('patients')
+    .select(`
+      *,
+      patient_intake_submissions!intake_submission_id(
+        allergies, medical_history, risk_factors, current_medications,
+        emergency_contacts, x_ray_availability, doctor_notes, submitted_at, status
+      )
+    `)
+    .eq('id', id)
+    .single()
+
+  if (error || !data) return null
+
+  const row = data as Patient & { patient_intake_submissions: PatientIntakeData | null }
+  return {
+    ...row,
+    intake: row.patient_intake_submissions ?? null,
+  }
 }
 
 export async function getPendingIntakeSubmissions() {

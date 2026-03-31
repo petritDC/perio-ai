@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { getPatient, getPatientDocuments, getPatientIntakeData } from '@/lib/queries/patient.queries'
+import { getPatientWithIntake, getPatientDocuments } from '@/lib/queries/patient.queries'
 import { getPatientTreatmentPlans } from '@/lib/queries/treatment-plan.queries'
 import { getPatientRadiologyImages } from '@/lib/queries/radiology.queries'
 import { getPatientDiagnoses } from '@/lib/queries/diagnosis.queries'
@@ -21,7 +21,6 @@ import { computeBLDiagnosis } from '@/lib/services/bl-diagnosis.service'
 import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import blRaw from '@/lib/json/mock_BL.json'
-import type { RiskFactors } from '@/lib/types/patient-intake'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -29,8 +28,8 @@ interface PageProps {
 
 export default async function PatientProfilePage({ params }: PageProps) {
   const { id } = await params
-  const [patient, documents, treatmentPlans, radiologyImages, diagnoses, charts, session] = await Promise.all([
-    getPatient(id),
+  const [patientWithIntake, documents, treatmentPlans, radiologyImages, diagnoses, charts, session] = await Promise.all([
+    getPatientWithIntake(id),
     getPatientDocuments(id),
     getPatientTreatmentPlans(id),
     getPatientRadiologyImages(id),
@@ -38,9 +37,12 @@ export default async function PatientProfilePage({ params }: PageProps) {
     getPatientCharts(id),
     getSession(),
   ])
-  const intake = await getPatientIntakeData(patient?.intake_submission_id ?? null)
 
-  const riskFactors = (intake?.risk_factors as RiskFactors | null) ?? null
+  if (!patientWithIntake) notFound()
+
+  const { intake, ...patient } = patientWithIntake
+
+  const riskFactors = intake?.risk_factors ?? null
   const blDiagnosis = computeBLDiagnosis(blRaw, riskFactors)
 
   const firstImage = radiologyImages.find((img) => img.mimeType?.startsWith('image/')) ?? null
@@ -52,8 +54,6 @@ export default async function PatientProfilePage({ params }: PageProps) {
       .createSignedUrl(firstImage.filePath, 3600)
     firstImageUrl = data?.signedUrl ?? null
   }
-
-  if (!patient) notFound()
 
   const age = patient.date_of_birth
     ? Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
@@ -131,9 +131,9 @@ export default async function PatientProfilePage({ params }: PageProps) {
                     <div className="bg-white rounded-2xl p-5" style={{ boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)' }}>
                       <h3 className="text-[13px] font-semibold text-slate-900 mb-3" style={{ fontFamily: 'var(--font-sora)' }}>Risk Factors</h3>
                       <div className="space-y-1 text-[12px] text-slate-600">
-                        <p>Smoking: <span className="font-medium text-slate-800 capitalize">{(intake.risk_factors as any).smokingStatus?.replace('_', ' ')}</span></p>
-                        <p>Diabetes: <span className="font-medium text-slate-800">{(intake.risk_factors as any).diabetesDiagnosed ? 'Yes' : 'No'}</span>
-                          {(intake.risk_factors as any).hba1c ? <span className="text-slate-500"> · HbA1c {(intake.risk_factors as any).hba1c}%</span> : null}
+                        <p>Smoking: <span className="font-medium text-slate-800 capitalize">{intake.risk_factors?.smokingStatus?.replace('_', ' ')}</span></p>
+                        <p>Diabetes: <span className="font-medium text-slate-800">{intake.risk_factors?.diabetesDiagnosed ? 'Yes' : 'No'}</span>
+                          {intake.risk_factors?.hba1c ? <span className="text-slate-500"> · HbA1c {intake.risk_factors.hba1c}%</span> : null}
                         </p>
                       </div>
                     </div>
