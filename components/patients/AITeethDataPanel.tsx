@@ -1,10 +1,9 @@
-import type { ReactNode } from 'react'
 import type { BLTooth } from '@/lib/services/bl-diagnosis.service'
 
 function ConfidenceBar({ value }: { value: number }) {
-  const pct = Math.round(value * 100)
+  const pct = Math.min(100, Math.max(0, Math.round(value * 100)))
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2" role="img" aria-label={`${pct}% confidence`}>
       <div className="w-20 h-1.5 bg-slate-100 rounded-full overflow-hidden">
         <div
           className="h-full bg-teal-500 rounded-full"
