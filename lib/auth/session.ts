@@ -1,7 +1,10 @@
+import { cache } from 'react'
 import { createClient } from '@/lib/supabase/server'
 import type { UserSession, UserRole } from '@/lib/types/auth'
 
-export async function getSession(): Promise<UserSession | null> {
+// cache() memoizes per React request — getSession() calls createClient() and
+// auth.getUser() exactly once per request, regardless of how many times it is called.
+export const getSession = cache(async (): Promise<UserSession | null> => {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -10,7 +13,6 @@ export async function getSession(): Promise<UserSession | null> {
   let role = (user.user_metadata?.role ?? '') as UserRole
   let fullName = user.user_metadata?.full_name ?? null
 
-  // Fall back to profiles table if metadata role is missing
   if (!role) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -22,7 +24,7 @@ export async function getSession(): Promise<UserSession | null> {
   }
 
   return { id: user.id, email: user.email!, role, fullName }
-}
+})
 
 export async function requireSession(): Promise<UserSession> {
   const session = await getSession()
