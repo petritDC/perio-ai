@@ -106,7 +106,7 @@ export default async function PatientProfilePage({ params }: PageProps) {
       <PatientProfileTabs
         tabContent={{
           overview: (
-            <div className="space-y-4">
+            <div key="overview" className="space-y-4">
               {patient.notes && (
                 <div className="bg-white rounded-2xl p-6" style={{ boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)' }}>
                   <h3 className="text-[14px] font-semibold text-slate-900 mb-2" style={{ fontFamily: 'var(--font-sora)' }}>Clinical Notes</h3>
@@ -181,13 +181,13 @@ export default async function PatientProfilePage({ params }: PageProps) {
             </div>
           ),
           documents: (
-            <div className="bg-white rounded-2xl p-6" style={{ boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)' }}>
+            <div key="documents" className="bg-white rounded-2xl p-6" style={{ boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)' }}>
               <h3 className="text-[14px] font-semibold text-slate-900 mb-4" style={{ fontFamily: 'var(--font-sora)' }}>Documents</h3>
               <DocumentUpload patientId={id} documents={documents} />
             </div>
           ),
           charting: (
-            <div className="space-y-4">
+            <div key="charting" className="space-y-4">
               <ChartSummaryCard
                 patientId={id}
                 charts={charts}
@@ -197,18 +197,20 @@ export default async function PatientProfilePage({ params }: PageProps) {
             </div>
           ),
           radiology: (
-            <div className="space-y-4">
+            <div key="radiology" className="space-y-4">
               <BLRadiologyOverlay imageUrl={firstImageUrl} teeth={blRaw.teeth} />
               <RadiologyViewer key="radiology" patientId={id} initialImages={radiologyImages} />
             </div>
           ),
           diagnostics: (
-            <div className="space-y-4">
+            <div key="diagnostics" className="space-y-4">
               <BLDiagnosisPanel diagnosis={blDiagnosis} teeth={blRaw.teeth} />
               <PatientDiagnosisHistory key="diagnostics" diagnoses={diagnoses} />
             </div>
           ),
-          treatment: <TreatmentPlansPanel key="treatment" patientId={id} initialPlans={treatmentPlans} />,
+          treatment: (
+            <TreatmentPlansPanel key="treatment" patientId={id} initialPlans={treatmentPlans} />
+          ),
         }}
       />
     </div>

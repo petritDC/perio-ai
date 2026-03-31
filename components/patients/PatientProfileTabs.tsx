@@ -47,7 +47,7 @@ function TabsInner({
           </button>
         ))}
       </div>
-      {tabContent[active] ?? null}
+      <div key={active}>{tabContent[active] ?? null}</div>
     </div>
   )
 }
