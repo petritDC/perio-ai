@@ -1,10 +1,11 @@
+import type { ReactNode } from 'react'
 import type { BLDiagnosis, BLTooth } from '@/lib/services/bl-diagnosis.service'
 
 function Badge({
   children,
   colorClass,
 }: {
-  children: React.ReactNode
+  children: ReactNode
   colorClass: string
 }) {
   return (
