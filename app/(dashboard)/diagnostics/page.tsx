@@ -29,7 +29,7 @@ export default async function DiagnosticsPage() {
           <tbody>
             {diagnoses.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-8 text-center text-[#717182]">
+                <td colSpan={4} className="px-4 py-8 text-center text-[#717182]">
                   No diagnoses generated yet.
                 </td>
               </tr>

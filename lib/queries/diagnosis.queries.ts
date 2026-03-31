@@ -59,6 +59,18 @@ export async function getRecentDiagnoses(limit = 20): Promise<Omit<AIDiagnosis, 
   return data.map(mapListRow)
 }
 
+// Full-detail list fetch — use when rendering all diagnoses for a patient (profile page)
+export async function getPatientDiagnosesFull(patientId: string): Promise<AIDiagnosis[]> {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('ai_diagnoses')
+    .select('*')
+    .eq('patient_id', patientId)
+    .order('created_at', { ascending: false })
+  if (error || !data) return []
+  return data.map(mapFullRow)
+}
+
 // Full detail fetch — use this when rendering a single diagnosis detail view
 export async function getDiagnosis(id: string): Promise<AIDiagnosis | null> {
   const supabase = await createClient()
