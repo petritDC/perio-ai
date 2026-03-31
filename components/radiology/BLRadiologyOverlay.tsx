@@ -27,7 +27,7 @@ export function BLRadiologyOverlay({
     }
   }
 
-  const visibleTeeth = teeth.filter((t) => t.confidence >= threshold)
+  const visibleCount = teeth.filter((t) => t.confidence >= threshold).length
 
   return (
     <div
@@ -54,7 +54,7 @@ export function BLRadiologyOverlay({
         </div>
       ) : (
         <>
-          {/* Confidence slider — only shown when an image is present */}
+          {/* Confidence slider */}
           <div className="flex items-center gap-3 mb-4">
             <span className="text-[11px] text-slate-500 whitespace-nowrap">
               Confidence threshold
@@ -69,80 +69,88 @@ export function BLRadiologyOverlay({
               className="flex-1 accent-teal-600"
               aria-label="Confidence threshold"
             />
-            <span className="text-[12px] font-medium text-slate-700 tabular-nums w-10 text-right">
+            <span className="text-[12px] font-semibold text-teal-700 tabular-nums w-10 text-right">
               {Math.round(threshold * 100)}%
             </span>
           </div>
 
-          <div className="relative inline-block w-full">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              ref={imgRef}
-              src={imageUrl}
-              alt="Dental X-ray"
-              onLoad={handleImageLoad}
-              className="w-full rounded-xl block"
-            />
+          {/* Image constrained to half width, centered */}
+          <div className="flex justify-center">
+            <div className="relative w-1/2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                ref={imgRef}
+                src={imageUrl}
+                alt="Dental X-ray"
+                onLoad={handleImageLoad}
+                className="w-full rounded-xl block"
+              />
 
-            {/* Bounding boxes — only rendered once image dimensions are known */}
-            {imgDims &&
-              visibleTeeth.map((tooth) => {
-                const { x1, y1, x2, y2 } = tooth.bounding_box
-                return (
-                  <div
-                    key={tooth.tooth_id}
-                    // overflow-hidden prevents out-of-bounds keypoints from bleeding into
-                    // adjacent boxes if live model output returns keypoints outside the box region
-                    className="absolute border-2 border-teal-500 rounded overflow-hidden"
-                    style={{
-                      left: toPercent(x1, imgDims.w),
-                      top: toPercent(y1, imgDims.h),
-                      width: toPercent(x2 - x1, imgDims.w),
-                      height: toPercent(y2 - y1, imgDims.h),
-                    }}
-                    aria-label={`Tooth ${tooth.tooth_id} bounding box`}
-                  >
-                    {/* Label */}
-                    <span className="absolute -top-5 left-0 bg-teal-600 text-white text-[9px] font-semibold px-1 py-0.5 rounded whitespace-nowrap">
-                      T{tooth.tooth_id} · {Math.round(tooth.confidence * 100)}%
-                    </span>
+              {/* Bounding boxes — all rendered, opacity controlled by confidence vs threshold */}
+              {imgDims &&
+                teeth.map((tooth) => {
+                  const { x1, y1, x2, y2 } = tooth.bounding_box
+                  const visible = tooth.confidence >= threshold
+                  return (
+                    <div
+                      key={tooth.tooth_id}
+                      className="absolute border-2 border-teal-500 rounded overflow-hidden transition-opacity duration-200"
+                      style={{
+                        left: toPercent(x1, imgDims.w),
+                        top: toPercent(y1, imgDims.h),
+                        width: toPercent(x2 - x1, imgDims.w),
+                        height: toPercent(y2 - y1, imgDims.h),
+                        opacity: visible ? 1 : 0,
+                        pointerEvents: visible ? 'auto' : 'none',
+                      }}
+                      aria-label={`Tooth ${tooth.tooth_id} bounding box`}
+                    >
+                      {/* Label — confidence turns red when near/below threshold */}
+                      <span
+                        className={`absolute -top-5 left-0 text-white text-[9px] font-semibold px-1 py-0.5 rounded whitespace-nowrap transition-colors duration-200 ${
+                          tooth.confidence >= threshold ? 'bg-teal-600' : 'bg-rose-500'
+                        }`}
+                      >
+                        T{tooth.tooth_id} · {Math.round(tooth.confidence * 100)}%
+                      </span>
 
-                    {/* CEJ keypoints — teal dots */}
-                    {(['CEJ_left', 'CEJ_right'] as const).map((kp) => {
-                      const point = tooth.keypoints[kp]
-                      if (point.confidence < threshold) return null
-                      return (
-                        <div
-                          key={kp}
-                          className="absolute w-2 h-2 rounded-full bg-teal-400 border border-white -translate-x-1/2 -translate-y-1/2"
-                          style={{
-                            left: toPercent(point.x - x1, x2 - x1),
-                            top: toPercent(point.y - y1, y2 - y1),
-                          }}
-                          title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
-                        />
-                      )
-                    })}
+                      {/* CEJ keypoints — teal dots */}
+                      {(['CEJ_left', 'CEJ_right'] as const).map((kp) => {
+                        const point = tooth.keypoints[kp]
+                        if (point.confidence < threshold) return null
+                        return (
+                          <div
+                            key={kp}
+                            className="absolute w-2 h-2 rounded-full bg-teal-400 border border-white -translate-x-1/2 -translate-y-1/2"
+                            style={{
+                              left: toPercent(point.x - x1, x2 - x1),
+                              top: toPercent(point.y - y1, y2 - y1),
+                            }}
+                            title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
+                          />
+                        )
+                      })}
 
-                    {/* BL keypoints — amber dots */}
-                    {(['BL_left', 'BL_right'] as const).map((kp) => {
-                      const point = tooth.keypoints[kp]
-                      if (point.confidence < threshold) return null
-                      return (
-                        <div
-                          key={kp}
-                          className="absolute w-2 h-2 rounded-full bg-amber-400 border border-white -translate-x-1/2 -translate-y-1/2"
-                          style={{
-                            left: toPercent(point.x - x1, x2 - x1),
-                            top: toPercent(point.y - y1, y2 - y1),
-                          }}
-                          title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
-                        />
-                      )
-                    })}
-                  </div>
-                )
-              })}
+                      {/* BL keypoints — amber dots */}
+                      {(['BL_left', 'BL_right'] as const).map((kp) => {
+                        const point = tooth.keypoints[kp]
+                        if (point.confidence < threshold) return null
+                        return (
+                          <div
+                            key={kp}
+                            className="absolute w-2 h-2 rounded-full bg-amber-400 border border-white -translate-x-1/2 -translate-y-1/2"
+                            style={{
+                              left: toPercent(point.x - x1, x2 - x1),
+                              top: toPercent(point.y - y1, y2 - y1),
+                            }}
+                            title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
+                          />
+                        )
+                      })}
+                    </div>
+                  )
+                })}
+            </div>
           </div>
         </>
       )}
@@ -162,7 +170,7 @@ export function BLRadiologyOverlay({
           <span className="text-[11px] text-slate-500">Tooth bounding box</span>
         </div>
         <span className="ml-auto text-[11px] text-slate-400">
-          {visibleTeeth.length} / {teeth.length} teeth shown
+          {visibleCount} / {teeth.length} teeth shown
         </span>
       </div>
     </div>

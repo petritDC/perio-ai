@@ -23,10 +23,10 @@ export async function POST(
     const diagnoses = await getChartDiagnoses(chartId)
     const latestDiagnosis = diagnoses[0] ?? null
 
-    // Get patient/provider names from profiles
+    // Patient records live in `patients`; providers still come from staff `profiles`.
     const supabase = await createClient()
     const [patientProfile, providerProfile] = await Promise.all([
-      supabase.from('profiles').select('full_name').eq('id', chart.patientId).single(),
+      supabase.from('patients').select('full_name').eq('id', chart.patientId).single(),
       supabase.from('profiles').select('full_name').eq('id', chart.providerId).single(),
     ])
     const patientName = patientProfile.data?.full_name ?? 'Unknown Patient'

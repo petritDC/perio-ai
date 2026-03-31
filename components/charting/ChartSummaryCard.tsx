@@ -6,17 +6,21 @@ import type { ChartListItem } from '@/lib/types/charting'
 export default function ChartSummaryCard({
   patientId,
   charts,
+  canCreateChart = true,
 }: {
   patientId: string
   charts: ChartListItem[]
+  canCreateChart?: boolean
 }) {
   return (
     <div className="bg-white rounded-xl border border-[#E4E7EE] shadow-[var(--shadow-card)] p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-[#030213]">Periodontal Charts</h3>
-        <Button asChild size="sm" variant="outline">
-          <Link href={`/charting/new?patientId=${patientId}`}>New Chart</Link>
-        </Button>
+        {canCreateChart ? (
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/charting/new?patientId=${patientId}`}>New Chart</Link>
+          </Button>
+        ) : null}
       </div>
 
       {charts.length === 0 ? (

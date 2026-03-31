@@ -66,7 +66,9 @@ export default function Odontogram({
   return (
     <div className="bg-white rounded-xl border border-[#E4E7EE] shadow-[var(--shadow-card)] p-4">
       <div className="text-xs text-[#717182] mb-2 font-medium">
-        Odontogram — click a tooth to enter measurements
+        {readOnly
+          ? 'Odontogram — click a tooth to inspect measurements'
+          : 'Odontogram — click a tooth to enter measurements'}
       </div>
 
       {/* Upper arch */}
@@ -77,7 +79,7 @@ export default function Odontogram({
             number={n}
             tooth={toothMap.get(n)}
             selected={selectedTooth === n}
-            onClick={() => !readOnly && onSelectTooth(n)}
+            onClick={() => onSelectTooth(n)}
           />
         ))}
         <div className="w-2" />
@@ -87,7 +89,7 @@ export default function Odontogram({
             number={n}
             tooth={toothMap.get(n)}
             selected={selectedTooth === n}
-            onClick={() => !readOnly && onSelectTooth(n)}
+            onClick={() => onSelectTooth(n)}
           />
         ))}
       </div>
@@ -102,7 +104,7 @@ export default function Odontogram({
             number={n}
             tooth={toothMap.get(n)}
             selected={selectedTooth === n}
-            onClick={() => !readOnly && onSelectTooth(n)}
+            onClick={() => onSelectTooth(n)}
           />
         ))}
         <div className="w-2" />
@@ -112,7 +114,7 @@ export default function Odontogram({
             number={n}
             tooth={toothMap.get(n)}
             selected={selectedTooth === n}
-            onClick={() => !readOnly && onSelectTooth(n)}
+            onClick={() => onSelectTooth(n)}
           />
         ))}
       </div>

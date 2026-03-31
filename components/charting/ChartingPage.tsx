@@ -9,14 +9,22 @@ import ToothPanel from './ToothPanel'
 import ChartingGrid from './ChartingGrid'
 import { finalizeChart } from '@/lib/actions/charting.actions'
 import type { ChartWithTeeth } from '@/lib/types/charting'
+import type { UserRole } from '@/lib/types/auth'
 
-export default function ChartingPage({ chart }: { chart: ChartWithTeeth }) {
+export default function ChartingPage({
+  chart,
+  role,
+}: {
+  chart: ChartWithTeeth
+  role: UserRole
+}) {
   const [selectedTooth, setSelectedTooth] = useState<number | null>(null)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const readOnly = chart.status === 'finalized'
+  const canEdit = ['admin', 'dentist', 'hygienist'].includes(role)
+  const canFinalize = canEdit && chart.status !== 'finalized'
   const selectedData = selectedTooth
     ? chart.teeth.find((t) => t.toothNumber === selectedTooth)
     : undefined
@@ -43,7 +51,7 @@ export default function ChartingPage({ chart }: { chart: ChartWithTeeth }) {
             {chart.status}
           </Badge>
         </div>
-        {!readOnly ? (
+        {canFinalize ? (
           <div className="flex items-center gap-3">
             {error ? <span className="text-xs text-[#d4183d]">{error}</span> : null}
             <Button
@@ -55,8 +63,14 @@ export default function ChartingPage({ chart }: { chart: ChartWithTeeth }) {
               {isPending ? 'Finalizing…' : 'Finalize Chart'}
             </Button>
           </div>
+        ) : canEdit ? (
+          <span className="text-xs text-[#717182]">
+            {chart.status === 'finalized'
+              ? 'Finalized, but still editable by clinical staff'
+              : 'Editable by clinical staff'}
+          </span>
         ) : (
-          <span className="text-xs text-[#717182]">Read-only — chart is finalized</span>
+          <span className="text-xs text-[#717182]">Read-only for reception staff</span>
         )}
       </div>
 
@@ -65,7 +79,7 @@ export default function ChartingPage({ chart }: { chart: ChartWithTeeth }) {
         teeth={chart.teeth}
         selectedTooth={selectedTooth}
         onSelectTooth={setSelectedTooth}
-        readOnly={readOnly}
+        readOnly={!canEdit}
       />
 
       {/* Two-column layout: tooth panel + grid */}
@@ -77,7 +91,7 @@ export default function ChartingPage({ chart }: { chart: ChartWithTeeth }) {
               chartId={chart.id}
               toothNumber={selectedTooth}
               existing={selectedData}
-              readOnly={readOnly}
+              readOnly={!canEdit}
             />
           ) : (
             <div className="bg-white rounded-xl border border-[#E4E7EE] shadow-[var(--shadow-card)] p-6 text-center text-sm text-[#717182]">

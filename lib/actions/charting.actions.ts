@@ -8,7 +8,7 @@ import type { ToothData } from '@/lib/types/charting'
 import { createNotification } from '@/lib/actions/notification.actions'
 
 export async function createChart(formData: FormData) {
-  await requireRole(['admin', 'dentist', 'hygienist', 'receptionist'])
+  await requireRole(['admin', 'dentist', 'hygienist'])
   const session = await getSession()
 
   const raw = {
@@ -42,7 +42,7 @@ export async function createChart(formData: FormData) {
 }
 
 export async function upsertTooth(toothData: ToothData) {
-  await requireRole(['admin', 'dentist', 'hygienist', 'receptionist'])
+  await requireRole(['admin', 'dentist', 'hygienist'])
 
   const parsed = upsertToothSchema.safeParse(toothData)
   if (!parsed.success) {
@@ -50,17 +50,6 @@ export async function upsertTooth(toothData: ToothData) {
   }
 
   const supabase = createAdminClient()
-
-  // Check chart is not finalized
-  const { data: chart } = await supabase
-    .from('periodontal_charts')
-    .select('status')
-    .eq('id', parsed.data.chartId)
-    .single()
-
-  if (chart?.status === 'finalized') {
-    return { error: 'Cannot edit a finalized chart' }
-  }
 
   const row = {
     chart_id: parsed.data.chartId,
@@ -89,7 +78,7 @@ export async function upsertTooth(toothData: ToothData) {
 }
 
 export async function finalizeChart(chartId: string) {
-  await requireRole(['admin', 'dentist', 'hygienist', 'receptionist'])
+  await requireRole(['admin', 'dentist', 'hygienist'])
 
   const supabase = createAdminClient()
   const { error } = await supabase

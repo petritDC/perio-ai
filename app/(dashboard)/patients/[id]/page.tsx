@@ -19,6 +19,7 @@ import { AITeethDataPanel } from '@/components/patients/AITeethDataPanel'
 import { BLRadiologyOverlay } from '@/components/radiology/BLRadiologyOverlay'
 import { computeBLDiagnosis } from '@/lib/services/bl-diagnosis.service'
 import { createClient } from '@/lib/supabase/server'
+import { getSession } from '@/lib/auth/session'
 import blRaw from '@/lib/json/mock_BL.json'
 import type { RiskFactors } from '@/lib/types/patient-intake'
 
@@ -28,13 +29,14 @@ interface PageProps {
 
 export default async function PatientProfilePage({ params }: PageProps) {
   const { id } = await params
-  const [patient, documents, treatmentPlans, radiologyImages, diagnoses, charts] = await Promise.all([
+  const [patient, documents, treatmentPlans, radiologyImages, diagnoses, charts, session] = await Promise.all([
     getPatient(id),
     getPatientDocuments(id),
     getPatientTreatmentPlans(id),
     getPatientRadiologyImages(id),
     getPatientDiagnoses(id),
     getPatientCharts(id),
+    getSession(),
   ])
   const intake = await getPatientIntakeData(patient?.intake_submission_id ?? null)
 
@@ -169,7 +171,11 @@ export default async function PatientProfilePage({ params }: PageProps) {
                 </div>
               )}
 
-              <ChartSummaryCard patientId={id} charts={charts} />
+              <ChartSummaryCard
+                patientId={id}
+                charts={charts}
+                canCreateChart={['admin', 'dentist', 'hygienist'].includes(session?.role ?? '')}
+              />
             </div>
           ),
           documents: (
@@ -180,7 +186,11 @@ export default async function PatientProfilePage({ params }: PageProps) {
           ),
           charting: (
             <div className="space-y-4">
-              <ChartSummaryCard patientId={id} charts={charts} />
+              <ChartSummaryCard
+                patientId={id}
+                charts={charts}
+                canCreateChart={['admin', 'dentist', 'hygienist'].includes(session?.role ?? '')}
+              />
               <AITeethDataPanel teeth={blRaw.teeth} />
             </div>
           ),

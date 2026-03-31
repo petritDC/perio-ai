@@ -35,5 +35,5 @@ export const upsertToothSchema = z.object({
   mobility: z.number().int().min(0).max(3).optional().default(0),
   implant: boolField.optional().default(false),
   missing: boolField.optional().default(false),
-  notes: z.string().optional(),
+  notes: z.string().nullable().optional().default(null),
 })
