@@ -1,5 +1,4 @@
 import { getRecentDiagnoses } from '@/lib/queries/diagnosis.queries'
-import { Badge } from '@/components/ui/badge'
 
 const STAGE_COLORS: Record<string, string> = {
   'Stage I': 'bg-green-100 text-green-800',
@@ -25,7 +24,6 @@ export default async function DiagnosticsPage() {
               <th className="text-left px-4 py-3 text-xs font-semibold text-[#717182] uppercase tracking-wider">Stage</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-[#717182] uppercase tracking-wider">Grade</th>
               <th className="text-left px-4 py-3 text-xs font-semibold text-[#717182] uppercase tracking-wider">Extent</th>
-              <th className="text-right px-4 py-3 text-xs font-semibold text-[#717182] uppercase tracking-wider">Priority</th>
             </tr>
           </thead>
           <tbody>
@@ -50,11 +48,6 @@ export default async function DiagnosticsPage() {
                   </td>
                   <td className="px-4 py-3 text-[#030213]">{dx.grade ?? '—'}</td>
                   <td className="px-4 py-3 text-[#717182]">{dx.extent ?? '—'}</td>
-                  <td className="px-4 py-3 text-right">
-                    <Badge variant="secondary" className="capitalize text-xs">
-                      {dx.findings.treatmentPriority}
-                    </Badge>
-                  </td>
                 </tr>
               ))
             )}

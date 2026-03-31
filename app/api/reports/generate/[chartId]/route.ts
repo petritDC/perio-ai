@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireRole } from '@/lib/auth/session'
 import { getChart } from '@/lib/queries/charting.queries'
-import { getChartDiagnoses } from '@/lib/queries/diagnosis.queries'
+import { getChartDiagnoses, getDiagnosis } from '@/lib/queries/diagnosis.queries'
 import { generateReportPDF, uploadReportToStorage } from '@/lib/services/report.service'
 
 export async function POST(
@@ -18,9 +18,12 @@ export async function POST(
       return NextResponse.json({ error: 'Chart not found' }, { status: 404 })
     }
 
-    // Get latest diagnosis (if any)
-    const diagnoses = await getChartDiagnoses(chartId)
-    const latestDiagnosis = diagnoses[0] ?? null
+    // Get latest diagnosis (if any) — fetch full diagnosis with findings if available
+    const diagnosesList = await getChartDiagnoses(chartId)
+    let latestDiagnosis = null
+    if (diagnosesList.length > 0) {
+      latestDiagnosis = await getDiagnosis(diagnosesList[0].id)
+    }
 
     // Patient records live in `patients`; providers still come from staff `profiles`.
     const supabase = await createClient()

@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { getPatientWithIntake, getPatientDocuments } from '@/lib/queries/patient.queries'
 import { getPatientTreatmentPlans } from '@/lib/queries/treatment-plan.queries'
 import { getPatientRadiologyImages } from '@/lib/queries/radiology.queries'
-import { getPatientDiagnoses } from '@/lib/queries/diagnosis.queries'
+import { getPatientDiagnoses, getDiagnosis } from '@/lib/queries/diagnosis.queries'
 import { getPatientCharts } from '@/lib/queries/charting.queries'
 import { PatientProfileTabs } from '@/components/patients/PatientProfileTabs'
 import { DocumentUpload } from '@/components/patients/DocumentUpload'
@@ -28,7 +28,7 @@ interface PageProps {
 
 export default async function PatientProfilePage({ params }: PageProps) {
   const { id } = await params
-  const [patientWithIntake, documents, treatmentPlans, radiologyImages, diagnoses, charts, session] = await Promise.all([
+  const [patientWithIntake, documents, treatmentPlans, radiologyImages, diagnosisList, charts, session] = await Promise.all([
     getPatientWithIntake(id),
     getPatientDocuments(id),
     getPatientTreatmentPlans(id),
@@ -37,6 +37,12 @@ export default async function PatientProfilePage({ params }: PageProps) {
     getPatientCharts(id),
     getSession(),
   ])
+
+  // Fetch full diagnoses with findings for the history panel
+  const diagnosisResults = await Promise.all(
+    diagnosisList.map((d) => getDiagnosis(d.id))
+  )
+  const diagnoses = diagnosisResults.filter((d) => d !== null) as NonNullable<typeof diagnosisResults[number]>[]
 
   if (!patientWithIntake) notFound()
 
