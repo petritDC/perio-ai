@@ -70,8 +70,8 @@ export function BLDiagnosisPanel({
             Grade modifiers
           </p>
           <ul className="space-y-0.5">
-            {diagnosis.gradeModifiers.map((mod, i) => (
-              <li key={i} className="text-[12px] text-slate-600">
+            {diagnosis.gradeModifiers.map((mod) => (
+              <li key={mod} className="text-[12px] text-slate-600">
                 • {mod}
               </li>
             ))}

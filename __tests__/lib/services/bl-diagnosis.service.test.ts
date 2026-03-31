@@ -130,4 +130,20 @@ describe('computeBLDiagnosis', () => {
     expect(result.measurements[0].tooth).toBe(21)
     expect(result.measurements[1].tooth).toBe(22)
   })
+
+  it('returns Stage II when maxBoneLossPct is between 15 and 33', () => {
+    // 4.29mm / 13mm * 100 ≈ 33.0% — boundary of Stage II / Stage III
+    // Use 3.0mm each side → avg 3.0 → 3.0/13*100 ≈ 23.1% → Stage II
+    const stageTwoBL: BLData = {
+      ...mockBL,
+      teeth: [
+        {
+          ...mockBL.teeth[0],
+          measurements_mm: { left: { CEJ_to_BL: 3.0 }, right: { CEJ_to_BL: 3.0 } },
+        },
+      ],
+    }
+    const result = computeBLDiagnosis(stageTwoBL, nonSmokerNoDb)
+    expect(result.stage).toBe('Stage II')
+  })
 })

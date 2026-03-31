@@ -19,6 +19,7 @@ export interface BLKeypoint {
 
 export interface BLTooth {
   tooth_id: number
+  class_id?: number
   confidence: number
   bounding_box: { x1: number; y1: number; x2: number; y2: number }
   keypoints: {
