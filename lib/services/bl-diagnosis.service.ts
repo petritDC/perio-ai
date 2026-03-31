@@ -6,6 +6,9 @@ import {
   type BoneLevelMeasurement,
 } from '@/lib/services/periodontitis.service'
 
+// Average root length used as denominator for radiographic bone loss %.
+// Simplified single value per AAP/EFP 2017 classification framework.
+// Real implementations should use a tooth-ID-specific lookup table.
 const AVG_ROOT_LENGTH_MM = 13
 
 export interface BLKeypoint {
@@ -58,8 +61,10 @@ export function computeBLDiagnosis(
   riskFactors?: RiskFactors | null
 ): BLDiagnosis {
   const measurements: BoneLevelMeasurement[] = blData.teeth.map((tooth) => {
-    const avgCejToBL =
+    const avgCejToBL = Math.max(
+      0,
       (tooth.measurements_mm.left.CEJ_to_BL + tooth.measurements_mm.right.CEJ_to_BL) / 2
+    )
     const boneLossPct = (avgCejToBL / AVG_ROOT_LENGTH_MM) * 100
     return {
       tooth: tooth.tooth_id,

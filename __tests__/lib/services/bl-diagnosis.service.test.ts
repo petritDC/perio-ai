@@ -97,6 +97,18 @@ describe('computeBLDiagnosis', () => {
     expect(result.grade).toBe('Grade C')
   })
 
+  it('returns Grade A when diabetesDiagnosed is true but hba1c is null', () => {
+    const diabeticNoHba1c: RiskFactors = {
+      smokingStatus: 'non_smoker',
+      cigarettesPerDay: 0,
+      diabetesDiagnosed: true,
+      hba1c: null,
+    }
+    const result = computeBLDiagnosis(mockBL, diabeticNoHba1c)
+    // determineGrade only upgrades grade when hba1c !== null, so Grade A here
+    expect(result.grade).toBe('Grade A')
+  })
+
   it('returns Generalized when ≥30% of teeth have bone loss ≥15%', () => {
     const result = computeBLDiagnosis(mockBL, nonSmokerNoDb)
     expect(result.extent).toBe('Generalized')
@@ -104,9 +116,7 @@ describe('computeBLDiagnosis', () => {
 
   it('composes fullDiagnosis string as "Extent Periodontitis, Stage X, Grade Y"', () => {
     const result = computeBLDiagnosis(mockBL, nonSmokerNoDb)
-    expect(result.fullDiagnosis).toBe(
-      `${result.extent} Periodontitis, ${result.stage}, ${result.grade}`
-    )
+    expect(result.fullDiagnosis).toBe('Generalized Periodontitis, Stage III, Grade A')
   })
 
   it('falls back to Grade A defaults when riskFactors is null', () => {
