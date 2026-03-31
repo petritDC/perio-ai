@@ -13,6 +13,7 @@ export const getSession = cache(async (): Promise<UserSession | null> => {
   let role = (user.user_metadata?.role ?? '') as UserRole
   let fullName = user.user_metadata?.full_name ?? null
 
+  // Fall back to profiles table if metadata role is missing
   if (!role) {
     const { data: profile } = await supabase
       .from('profiles')

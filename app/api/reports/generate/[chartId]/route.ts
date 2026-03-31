@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { requireRole, getSession } from '@/lib/auth/session'
+import { requireRole } from '@/lib/auth/session'
 import { getChart } from '@/lib/queries/charting.queries'
 import { getChartDiagnoses } from '@/lib/queries/diagnosis.queries'
 import { generateReportPDF, uploadReportToStorage } from '@/lib/services/report.service'
@@ -10,8 +10,7 @@ export async function POST(
   { params }: { params: Promise<{ chartId: string }> }
 ) {
   try {
-    await requireRole(['admin', 'dentist', 'hygienist', 'receptionist'])
-    const session = await getSession()
+    const session = await requireRole(['admin', 'dentist', 'hygienist', 'receptionist'])
     const { chartId } = await params
 
     const chart = await getChart(chartId)
