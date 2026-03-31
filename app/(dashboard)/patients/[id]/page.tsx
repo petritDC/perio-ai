@@ -14,6 +14,13 @@ import ChartSummaryCard from '@/components/charting/ChartSummaryCard'
 import { Button } from '@/components/ui/button'
 import { DeletePatientButton } from '@/components/patients/DeletePatientButton'
 import { ChevronLeft, Pencil } from 'lucide-react'
+import { BLDiagnosisPanel } from '@/components/patients/BLDiagnosisPanel'
+import { AITeethDataPanel } from '@/components/patients/AITeethDataPanel'
+import { BLRadiologyOverlay } from '@/components/radiology/BLRadiologyOverlay'
+import { computeBLDiagnosis } from '@/lib/services/bl-diagnosis.service'
+import { createClient } from '@/lib/supabase/server'
+import blRaw from '@/lib/json/mock_BL.json'
+import type { RiskFactors } from '@/lib/types/patient-intake'
 
 interface PageProps {
   params: Promise<{ id: string }>
@@ -30,6 +37,20 @@ export default async function PatientProfilePage({ params }: PageProps) {
     getPatientCharts(id),
   ])
   const intake = await getPatientIntakeData(patient?.intake_submission_id ?? null)
+
+  const riskFactors = (intake?.risk_factors as RiskFactors | null) ?? null
+  const blDiagnosis = computeBLDiagnosis(blRaw, riskFactors)
+
+  const firstImage = radiologyImages.find((img) => img.mimeType?.startsWith('image/')) ?? null
+  let firstImageUrl: string | null = null
+  if (firstImage) {
+    const supabase = await createClient()
+    const { data } = await supabase.storage
+      .from('documents')
+      .createSignedUrl(firstImage.filePath, 3600)
+    firstImageUrl = data?.signedUrl ?? null
+  }
+
   if (!patient) notFound()
 
   const age = patient.date_of_birth
@@ -160,10 +181,21 @@ export default async function PatientProfilePage({ params }: PageProps) {
           charting: (
             <div className="space-y-4">
               <ChartSummaryCard patientId={id} charts={charts} />
+              <AITeethDataPanel teeth={blRaw.teeth} />
             </div>
           ),
-          radiology: <RadiologyViewer key="radiology" patientId={id} initialImages={radiologyImages} />,
-          diagnostics: <PatientDiagnosisHistory key="diagnostics" diagnoses={diagnoses} />,
+          radiology: (
+            <div className="space-y-4">
+              <BLRadiologyOverlay imageUrl={firstImageUrl} teeth={blRaw.teeth} />
+              <RadiologyViewer key="radiology" patientId={id} initialImages={radiologyImages} />
+            </div>
+          ),
+          diagnostics: (
+            <div className="space-y-4">
+              <BLDiagnosisPanel diagnosis={blDiagnosis} teeth={blRaw.teeth} />
+              <PatientDiagnosisHistory key="diagnostics" diagnoses={diagnoses} />
+            </div>
+          ),
           treatment: <TreatmentPlansPanel key="treatment" patientId={id} initialPlans={treatmentPlans} />,
         }}
       />
