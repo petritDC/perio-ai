@@ -18,17 +18,17 @@ type NavItem = {
 }
 
 const navigation: NavItem[] = [
-  { name: 'Dashboard',   href: '/dashboard',        icon: LayoutDashboard },
-  { name: 'Patients',    href: '/patients',          icon: Users,      sectionLabel: 'Clinical' },
-  { name: 'Schedule',    href: '/schedule',          icon: Calendar },
-  { name: 'Charting',    href: '/charting',          icon: Stethoscope },
-  { name: 'Radiology',   href: '/radiology',         icon: Image },
-  { name: 'Diagnostics', href: '/diagnostics',       icon: FileCheck },
-  { name: 'Reports',     href: '/reports',           icon: FileText },
-  { name: 'Staff',       href: '/settings/staff',    icon: UserCog,    sectionLabel: 'Admin' },
-  { name: 'Clinic',      href: '/settings/clinic',   icon: Building2 },
-  { name: 'Billing',     href: '/billing',           icon: CreditCard },
-  { name: 'Settings',    href: '/settings',          icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Patients', href: '/patients', icon: Users, sectionLabel: 'Clinical' },
+  { name: 'Appointments', href: '/schedule', icon: Calendar },
+  // { name: 'Charting', href: '/charting', icon: Stethoscope },
+  // { name: 'Radiology', href: '/radiology', icon: Image },
+  // { name: 'Diagnostics', href: '/diagnostics', icon: FileCheck },
+  { name: 'Reports', href: '/reports', icon: FileText },
+  { name: 'Staff', href: '/staff', icon: UserCog, sectionLabel: 'Admin' },
+  { name: 'Clinic', href: '/clinic', icon: Building2 },
+  { name: 'Billing', href: '/billing', icon: CreditCard },
+  { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
 export default function Sidebar() {
@@ -91,11 +91,10 @@ export default function Sidebar() {
               )}
               <Link
                 href={item.href}
-                className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${
-                  isActive
+                className={`relative flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all ${isActive
                     ? 'bg-white text-slate-900 font-semibold'
                     : 'text-slate-500 hover:text-slate-700 hover:bg-white/60'
-                }`}
+                  }`}
                 style={isActive ? { boxShadow: 'var(--shadow-card)', fontFamily: 'var(--font-sora)' } : { fontFamily: 'var(--font-sora)' }}
               >
                 {isActive && (

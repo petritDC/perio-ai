@@ -17,7 +17,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
         >
           My Profile
         </Link>
-        {isAdmin && (
+        {/* {isAdmin && (
           <>
             <p className="text-xs font-semibold text-[#717182] uppercase tracking-wider px-2 pt-4 pb-1">
               Admin
@@ -35,7 +35,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
               Staff
             </Link>
           </>
-        )}
+        )} */}
       </aside>
       <main className="flex-1 p-8 max-w-4xl">{children}</main>
     </div>

@@ -25,6 +25,8 @@ export async function getClinicProfile(): Promise<ClinicProfile | null> {
   }
 }
 
+export const STAFF_LIST_PAGE_SIZE = 10
+
 export async function getStaffMembers(): Promise<StaffMember[]> {
   const supabase = await createClient()
   const { data, error } = await supabase
@@ -45,6 +47,45 @@ export async function getStaffMembers(): Promise<StaffMember[]> {
     status: row.status as StaffMember['status'],
     createdAt: row.created_at,
   }))
+}
+
+export async function getStaffMembersPaginated(options: {
+  search?: string
+  page: number
+  limit?: number
+}): Promise<{ data: StaffMember[]; count: number }> {
+  const supabase = await createClient()
+  const limit = options.limit ?? STAFF_LIST_PAGE_SIZE
+  const page = Math.max(1, Number.isFinite(options.page) ? options.page : 1)
+  const from = (page - 1) * limit
+  const to = from + limit - 1
+  const search = options.search?.trim()
+
+  let query = supabase
+    .from('profiles')
+    .select('id, full_name, role, status, created_at', { count: 'exact' })
+    .neq('role', 'patient')
+    .order('created_at', { ascending: false })
+
+  if (search) {
+    query = query.ilike('full_name', `%${search}%`)
+  }
+
+  const { data, error, count } = await query.range(from, to)
+
+  if (error || !data) return { data: [], count: 0 }
+
+  return {
+    data: data.map((row) => ({
+      id: row.id,
+      email: '',
+      fullName: row.full_name,
+      role: row.role as StaffMember['role'],
+      status: row.status as StaffMember['status'],
+      createdAt: row.created_at,
+    })),
+    count: count ?? 0,
+  }
 }
 
 export async function getStaffMember(userId: string): Promise<StaffMember | null> {

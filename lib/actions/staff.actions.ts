@@ -53,18 +53,25 @@ export async function updateStaffMember(formData: FormData) {
     return { error: parsed.error.issues[0].message }
   }
 
-  const supabase = await createClient()
   const update: Record<string, unknown> = {}
   if (parsed.data.role) update.role = parsed.data.role
   if (parsed.data.status) update.status = parsed.data.status
   if (parsed.data.fullName) update.full_name = parsed.data.fullName
 
-  const { error } = await supabase
+  if (Object.keys(update).length === 0) {
+    return { error: 'No changes to save.' }
+  }
+
+  const admin = createAdminClient()
+  const { data, error } = await admin
     .from('profiles')
     .update(update)
     .eq('id', parsed.data.id)
+    .select('id')
+    .maybeSingle()
 
   if (error) return { error: error.message }
+  if (!data) return { error: 'Staff member not found.' }
 
   revalidatePath('/settings/staff')
   revalidatePath(`/settings/staff/${parsed.data.id}`)
