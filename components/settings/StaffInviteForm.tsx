@@ -14,7 +14,17 @@ import {
 } from '@/components/ui/select'
 import { inviteStaff } from '@/lib/actions/staff.actions'
 
-export default function StaffInviteForm() {
+type StaffInviteFormProps = {
+  variant?: 'default' | 'modal'
+  onSuccess?: () => void
+  onCancel?: () => void
+}
+
+export default function StaffInviteForm({
+  variant = 'default',
+  onSuccess,
+  onCancel,
+}: StaffInviteFormProps) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
@@ -27,8 +37,13 @@ export default function StaffInviteForm() {
       if (result?.error) {
         setError(result.error)
       } else {
-        setSuccess(true)
-        setTimeout(() => router.push('/settings/staff'), 1500)
+        if (onSuccess) {
+          router.refresh()
+          onSuccess()
+        } else {
+          setSuccess(true)
+          setTimeout(() => router.push('/staff'), 1500)
+        }
       }
     })
   }
@@ -42,39 +57,73 @@ export default function StaffInviteForm() {
     )
   }
 
+  const fields = (
+    <>
+      {error ? (
+        <p className="text-sm text-[#d4183d] bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="space-y-1.5">
+        <Label htmlFor="fullName">Full Name</Label>
+        <Input id="fullName" name="fullName" placeholder="Dr. Jane Doe" required />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" name="email" type="email" placeholder="jane@clinic.com" required />
+      </div>
+
+      <div className="space-y-1.5">
+        <Label>Role</Label>
+        <Select name="role" defaultValue="dentist">
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="admin">Admin</SelectItem>
+            <SelectItem value="dentist">Dentist</SelectItem>
+            <SelectItem value="hygienist">Hygienist</SelectItem>
+            <SelectItem value="receptionist">Receptionist</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </>
+  )
+
+  if (variant === 'modal') {
+    return (
+      <form action={handleSubmit} className="space-y-6">
+        <div className="space-y-4">{fields}</div>
+
+        <div className="flex flex-wrap gap-3">
+          <Button
+            type="submit"
+            disabled={isPending}
+            className="bg-[#3BA39B] hover:bg-[#2F8D86] text-white"
+          >
+            {isPending ? 'Sending…' : 'Send Invitation'}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => {
+              if (onCancel) onCancel()
+              else router.back()
+            }}
+          >
+            Cancel
+          </Button>
+        </div>
+      </form>
+    )
+  }
+
   return (
     <form action={handleSubmit} className="space-y-6 max-w-md">
       <div className="bg-white rounded-xl border border-[#E4E7EE] shadow-[var(--shadow-card)] p-6 space-y-4">
-        {error ? (
-          <p className="text-sm text-[#d4183d] bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-            {error}
-          </p>
-        ) : null}
-
-        <div className="space-y-1.5">
-          <Label htmlFor="fullName">Full Name</Label>
-          <Input id="fullName" name="fullName" placeholder="Dr. Jane Doe" required />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" placeholder="jane@clinic.com" required />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label>Role</Label>
-          <Select name="role" defaultValue="dentist">
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="admin">Admin</SelectItem>
-              <SelectItem value="dentist">Dentist</SelectItem>
-              <SelectItem value="hygienist">Hygienist</SelectItem>
-              <SelectItem value="receptionist">Receptionist</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {fields}
       </div>
 
       <div className="flex gap-3">

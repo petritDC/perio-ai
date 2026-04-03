@@ -27,7 +27,7 @@ export default async function AdminPage() {
           Admin Overview
         </h1>
         <Button asChild size="sm" className="bg-[#0D9488] hover:bg-[#0B7C71] text-white">
-          <Link href="/settings/staff/invite">Invite Staff</Link>
+          <Link href="/staff">Invite Staff</Link>
         </Button>
       </div>
 

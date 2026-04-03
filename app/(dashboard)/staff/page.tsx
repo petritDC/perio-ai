@@ -1,10 +1,11 @@
 import Link from 'next/link'
 import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
-import { UserPlus, MoreVertical } from 'lucide-react'
+import { MoreVertical } from 'lucide-react'
 import { requireRole } from '@/lib/auth/session'
 import { getStaffMembersPaginated, STAFF_LIST_PAGE_SIZE } from '@/lib/queries/staff.queries'
 import { StaffSearchInput } from '@/components/staff/StaffSearchInput'
+import { StaffInviteTrigger } from '@/components/staff/StaffInviteTrigger'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -78,16 +79,7 @@ export default async function StaffPage({ searchParams }: PageProps) {
           </p>
         </div>
 
-        <Button
-          asChild
-          className="h-11 rounded-full bg-[#3BA39B] px-5 text-[15px] font-semibold text-white hover:bg-[#2F8D86]"
-          style={{ fontFamily: 'var(--font-sora)' }}
-        >
-          <Link href="/staff/invite">
-            <UserPlus className="size-4" />
-            Invite Team Member
-          </Link>
-        </Button>
+        <StaffInviteTrigger />
       </div>
 
       <section className="rounded-[22px] border border-[#D7E0EC] bg-white px-6 py-6 shadow-[var(--shadow-card)] md:px-7">
