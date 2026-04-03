@@ -16,9 +16,7 @@ import { DeletePatientButton } from '@/components/patients/DeletePatientButton'
 import { ChevronLeft, Pencil } from 'lucide-react'
 import { BLDiagnosisPanel } from '@/components/patients/BLDiagnosisPanel'
 import { AITeethDataPanel } from '@/components/patients/AITeethDataPanel'
-import { BLRadiologyOverlay } from '@/components/radiology/BLRadiologyOverlay'
 import { computeBLDiagnosis } from '@/lib/services/bl-diagnosis.service'
-import { createClient } from '@/lib/supabase/server'
 import { getSession } from '@/lib/auth/session'
 import blRaw from '@/lib/json/mock_BL.json'
 
@@ -46,16 +44,6 @@ export default async function PatientProfilePage({ params }: PageProps) {
 
   const riskFactors = intake?.risk_factors ?? null
   const blDiagnosis = computeBLDiagnosis(blRaw, riskFactors)
-
-  const firstImage = radiologyImages.find((img) => img.mimeType?.startsWith('image/')) ?? null
-  let firstImageUrl: string | null = null
-  if (firstImage) {
-    const supabase = await createClient()
-    const { data } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(firstImage.filePath, 3600)
-    firstImageUrl = data?.signedUrl ?? null
-  }
 
   const age = patient.date_of_birth
     ? Math.floor((Date.now() - new Date(patient.date_of_birth).getTime()) / (1000 * 60 * 60 * 24 * 365.25))
@@ -198,8 +186,12 @@ export default async function PatientProfilePage({ params }: PageProps) {
           ),
           radiology: (
             <div key="radiology" className="space-y-4">
-              <BLRadiologyOverlay imageUrl={firstImageUrl} teeth={blRaw.teeth} />
-              <RadiologyViewer key="radiology" patientId={id} initialImages={radiologyImages} />
+              <RadiologyViewer
+                key="radiology"
+                patientId={id}
+                initialImages={radiologyImages}
+                blAnalysisTeeth={blRaw.teeth}
+              />
             </div>
           ),
           diagnostics: (

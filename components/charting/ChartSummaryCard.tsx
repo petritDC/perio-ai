@@ -30,7 +30,7 @@ export default function ChartSummaryCard({
           {charts.slice(0, 5).map((c) => (
             <li key={c.id}>
               <Link
-                href={`/charting/${c.id}`}
+                href={`/charting/${c.id}?patientId=${encodeURIComponent(patientId)}`}
                 className="flex items-center justify-between py-1.5 hover:bg-[#F7F9FC] rounded px-1 transition-colors"
               >
                 <span className="text-sm text-[#030213]">{c.chartDate}</span>

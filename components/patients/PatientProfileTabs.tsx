@@ -36,7 +36,7 @@ function TabsInner({
           <button
             key={tab.id}
             onClick={() => handleTab(tab.id)}
-            className={`px-4 py-2.5 text-[13px] font-medium -mb-px border-b-2 transition-colors ${
+            className={`cursor-pointer px-4 py-2.5 text-[13px] font-medium -mb-px border-b-2 transition-colors ${
               active === tab.id
                 ? 'border-teal-600 text-teal-700'
                 : 'border-transparent text-slate-500 hover:text-slate-700'

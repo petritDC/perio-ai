@@ -1,7 +1,9 @@
+import { Suspense } from 'react'
 import { getSession } from '@/lib/auth/session'
 import { redirect } from 'next/navigation'
 import Sidebar from '@/components/shell/Sidebar'
 import TopBar from '@/components/shell/TopBar'
+import AppBreadcrumbs from '@/components/shell/AppBreadcrumbs'
 import SessionProvider from '@/components/shell/SessionProvider'
 import { getMyNotifications, getUnreadCount } from '@/lib/queries/notification.queries'
 
@@ -20,7 +22,12 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <Sidebar />
       <div className="ml-[220px]">
         <TopBar initialUnreadCount={unreadCount} initialNotifications={notifications} />
-        <main className="p-6">{children}</main>
+        <main className="p-6">
+          <Suspense fallback={null}>
+            <AppBreadcrumbs />
+          </Suspense>
+          {children}
+        </main>
       </div>
     </div>
   )

@@ -50,7 +50,9 @@ export default function NewChartForm({
         }
 
         if (result?.success && result.id) {
-          router.push(`/charting/${result.id}`)
+          router.push(
+            `/charting/${result.id}?patientId=${encodeURIComponent(patientId)}`,
+          )
           router.refresh()
           return
         }

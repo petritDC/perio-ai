@@ -1,11 +1,30 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import dynamic from 'next/dynamic'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { addRadiologyImage, deleteRadiologyImage } from '@/lib/actions/radiology.actions'
 import { createClient } from '@/lib/supabase/client'
 import type { RadiologyImage } from '@/lib/queries/radiology.queries'
+import type { BLTooth } from '@/lib/services/bl-diagnosis.service'
 import { X, ZoomIn } from 'lucide-react'
+
+/** Avoid static import here — prevents Turbopack/runtime ReferenceError on some setups */
+const BLRadiologyOverlay = dynamic(
+  () => import('./BLRadiologyOverlay').then((m) => m.BLRadiologyOverlay),
+  { ssr: false },
+)
+
+type RadiologyLightbox =
+  | { kind: 'simple'; url: string; fileName: string }
+  | { kind: 'bl'; url: string; fileName: string }
 
 function formatBytes(bytes: number | null): string {
   if (!bytes) return ''
@@ -17,19 +36,55 @@ function isImageMime(mimeType: string | null): boolean {
   return !!mimeType && mimeType.startsWith('image/')
 }
 
+const PREVIEW_URL_TTL_SEC = 3600
+
 export default function RadiologyViewer({
   patientId,
   initialImages,
+  blAnalysisTeeth,
 }: {
   patientId: string
   initialImages: RadiologyImage[]
+  /** When set, clicking an image opens AI bone-level analysis in a dialog */
+  blAnalysisTeeth?: BLTooth[]
 }) {
   const [images, setImages] = useState(initialImages)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [lightbox, setLightbox] = useState<{ url: string; fileName: string } | null>(null)
+  const [lightbox, setLightbox] = useState<RadiologyLightbox | null>(null)
+  const [previewUrlsById, setPreviewUrlsById] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    let cancelled = false
+    const imageRows = images.filter((row) => isImageMime(row.mimeType))
+    if (imageRows.length === 0) {
+      setPreviewUrlsById({})
+      return
+    }
+
+    async function loadPreviews() {
+      const supabase = createClient()
+      const pairs = await Promise.all(
+        imageRows.map(async (row) => {
+          const { data } = await supabase.storage
+            .from('documents')
+            .createSignedUrl(row.filePath, PREVIEW_URL_TTL_SEC)
+          return [row.id, data?.signedUrl ?? ''] as const
+        }),
+      )
+      if (cancelled) return
+      setPreviewUrlsById(
+        Object.fromEntries(pairs.filter(([, url]) => url.length > 0)) as Record<string, string>,
+      )
+    }
+
+    void loadPreviews()
+    return () => {
+      cancelled = true
+    }
+  }, [images])
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -92,7 +147,11 @@ export default function RadiologyViewer({
     const supabase = createClient()
     const { data } = await supabase.storage.from('documents').createSignedUrl(img.filePath, 60)
     if (data?.signedUrl) {
-      setLightbox({ url: data.signedUrl, fileName: img.fileName })
+      if (blAnalysisTeeth && blAnalysisTeeth.length > 0) {
+        setLightbox({ kind: 'bl', url: data.signedUrl, fileName: img.fileName })
+      } else {
+        setLightbox({ kind: 'simple', url: data.signedUrl, fileName: img.fileName })
+      }
     }
   }
 
@@ -132,10 +191,23 @@ export default function RadiologyViewer({
                   <button
                     type="button"
                     onClick={() => openLightbox(img)}
-                    className="w-full h-28 bg-[#F7F9FC] flex items-center justify-center text-3xl hover:bg-[#E9EBEF] transition-colors relative"
+                    className="w-full h-28 bg-[#F7F9FC] flex items-center justify-center text-3xl hover:bg-[#E9EBEF] transition-colors relative overflow-hidden"
                   >
-                    {isImageMime(img.mimeType) ? '🩻' : '📄'}
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+                    {isImageMime(img.mimeType) && previewUrlsById[img.id] ? (
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={previewUrlsById[img.id]}
+                          alt={img.fileName}
+                          className="absolute inset-0 w-full h-full object-cover"
+                        />
+                      </>
+                    ) : (
+                      <span aria-hidden className="relative z-0">
+                        {isImageMime(img.mimeType) ? '🩻' : '📄'}
+                      </span>
+                    )}
+                    <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none">
                       <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
                     </span>
                   </button>
@@ -172,8 +244,42 @@ export default function RadiologyViewer({
         </div>
       </div>
 
-      {/* Lightbox modal */}
-      {lightbox && (
+      {/* AI bone-level analysis (dialog) */}
+      <Dialog
+        open={lightbox?.kind === 'bl'}
+        onOpenChange={(open) => {
+          if (!open) setLightbox(null)
+        }}
+      >
+        <DialogContent
+          className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+          showCloseButton
+        >
+          {lightbox?.kind === 'bl' && blAnalysisTeeth ? (
+            <>
+              <DialogHeader className="text-left">
+                <DialogTitle
+                  className="text-[13px] font-semibold text-slate-900"
+                  style={{ fontFamily: 'var(--font-sora)' }}
+                >
+                  AI Bone Level Analysis
+                </DialogTitle>
+                <DialogDescription className="text-[10px] font-mono text-slate-400">
+                  mock_BL.JSON · {lightbox.fileName}
+                </DialogDescription>
+              </DialogHeader>
+              <BLRadiologyOverlay
+                imageUrl={lightbox.url}
+                teeth={blAnalysisTeeth}
+                variant="embedded"
+              />
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      {/* Simple image lightbox */}
+      {lightbox?.kind === 'simple' && (
         <div
           className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
           onClick={() => setLightbox(null)}
@@ -183,6 +289,7 @@ export default function RadiologyViewer({
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              type="button"
               onClick={() => setLightbox(null)}
               className="absolute -top-10 right-0 text-white/80 hover:text-white flex items-center gap-1.5 text-[13px]"
             >

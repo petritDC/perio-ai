@@ -10,9 +10,12 @@ function toPercent(value: number, total: number): string {
 export function BLRadiologyOverlay({
   imageUrl,
   teeth,
+  variant = 'card',
 }: {
   imageUrl: string | null
   teeth: BLTooth[]
+  /** `embedded`: no outer card — for use inside a dialog */
+  variant?: 'card' | 'embedded'
 }) {
   const [threshold, setThreshold] = useState(0.5)
   const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null)
@@ -29,21 +32,34 @@ export function BLRadiologyOverlay({
 
   const visibleCount = teeth.filter((t) => t.confidence >= threshold).length
 
+  const shellClass =
+    variant === 'card'
+      ? 'bg-white rounded-2xl p-5 mb-4'
+      : 'p-1 sm:p-2'
+
+  const shellStyle =
+    variant === 'card'
+      ? { boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)' }
+      : undefined
+
+  const imageWrapClass =
+    variant === 'embedded'
+      ? 'relative w-full max-w-3xl mx-auto'
+      : 'relative w-1/2'
+
   return (
-    <div
-      className="bg-white rounded-2xl p-5 mb-4"
-      style={{ boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)' }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h3
-          className="text-[13px] font-semibold text-slate-900"
-          style={{ fontFamily: 'var(--font-sora)' }}
-        >
-          AI Bone Level Analysis
-        </h3>
-        <span className="text-[10px] text-slate-400 font-mono">mock_BL.JSON</span>
-      </div>
+    <div className={shellClass} style={shellStyle}>
+      {variant === 'card' ? (
+        <div className="flex items-center justify-between mb-4">
+          <h3
+            className="text-[13px] font-semibold text-slate-900"
+            style={{ fontFamily: 'var(--font-sora)' }}
+          >
+            AI Bone Level Analysis
+          </h3>
+          <span className="text-[10px] text-slate-400 font-mono">mock_BL.JSON</span>
+        </div>
+      ) : null}
 
       {/* Image + overlay */}
       {!imageUrl ? (
@@ -74,9 +90,9 @@ export function BLRadiologyOverlay({
             </span>
           </div>
 
-          {/* Image constrained to half width, centered */}
+          {/* Image width: half on tab card, near-full in modal */}
           <div className="flex justify-center">
-            <div className="relative w-1/2">
+            <div className={imageWrapClass}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 ref={imgRef}
