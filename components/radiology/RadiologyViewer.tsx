@@ -11,10 +11,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { addRadiologyImage, deleteRadiologyImage } from '@/lib/actions/radiology.actions'
+import {
+  getDocumentsSignedUrl,
+  invalidateDocumentsSignedUrlCache,
+} from '@/lib/storage/documents-signed-url-cache'
 import { createClient } from '@/lib/supabase/client'
 import type { RadiologyImage } from '@/lib/queries/radiology.queries'
 import type { BLTooth } from '@/lib/services/bl-diagnosis.service'
-import { X, ZoomIn } from 'lucide-react'
+import { FileText, X, ZoomIn } from 'lucide-react'
 
 /** Avoid static import here — prevents Turbopack/runtime ReferenceError on some setups */
 const BLRadiologyOverlay = dynamic(
@@ -37,6 +41,107 @@ function isImageMime(mimeType: string | null): boolean {
 }
 
 const PREVIEW_URL_TTL_SEC = 3600
+
+function RadiologyGalleryCardSkeleton() {
+  return (
+    <div className="animate-pulse" aria-busy="true" aria-label="Loading image preview">
+      <div className="h-28 w-full bg-[#E4E7EE]" />
+      <div className="p-2 space-y-2">
+        <div className="h-3.5 bg-[#E4E7EE] rounded w-[85%]" />
+        <div className="h-2.5 bg-[#E4E7EE] rounded w-[55%]" />
+      </div>
+      <div className="px-2 pb-2 flex gap-1">
+        <div className="h-6 flex-1 bg-[#E4E7EE] rounded-md" />
+        <div className="h-6 w-14 bg-[#E4E7EE] rounded-md" />
+      </div>
+    </div>
+  )
+}
+
+function RadiologyGalleryCardActions({
+  img,
+  isPending,
+  onOpen,
+  onDelete,
+}: {
+  img: RadiologyImage
+  isPending: boolean
+  onOpen: () => void
+  onDelete: () => void
+}) {
+  return (
+    <>
+      <div className="p-2">
+        <p className="text-xs font-medium text-[#030213] truncate">{img.fileName}</p>
+        <p className="text-[10px] text-[#717182]">
+          {new Date(img.createdAt).toLocaleDateString('en-GB')}
+          {img.fileSize ? ` · ${formatBytes(img.fileSize)}` : ''}
+        </p>
+      </div>
+      <div className="px-2 pb-2 flex gap-1">
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex-1 text-[10px] h-6"
+          type="button"
+          onClick={onOpen}
+        >
+          View
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          className="text-[10px] h-6 text-[#d4183d] hover:text-[#d4183d] hover:bg-red-50"
+          type="button"
+          disabled={isPending}
+          onClick={onDelete}
+        >
+          Delete
+        </Button>
+      </div>
+    </>
+  )
+}
+
+function RadiologyGalleryThumb({
+  url,
+  fileName,
+  onClick,
+}: {
+  url: string
+  fileName: string
+  onClick: () => void
+}) {
+  const [isImageLoaded, setIsImageLoaded] = useState(false)
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full h-28 bg-[#F7F9FC] flex items-center justify-center text-3xl hover:bg-[#E9EBEF] transition-colors relative overflow-hidden"
+    >
+      <div
+        aria-hidden
+        className={`absolute inset-0 z-0 bg-[#E4E7EE] animate-pulse transition-opacity duration-200 ${
+          isImageLoaded ? 'opacity-0' : 'opacity-100'
+        }`}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={url}
+        alt={fileName}
+        className={`absolute inset-0 z-1 w-full h-full object-cover transition-opacity duration-200 ${
+          isImageLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+        onLoad={() => setIsImageLoaded(true)}
+        onError={() => setIsImageLoaded(true)}
+      />
+      <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none">
+        <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+      </span>
+    </button>
+  )
+}
 
 export default function RadiologyViewer({
   patientId,
@@ -68,10 +173,8 @@ export default function RadiologyViewer({
       const supabase = createClient()
       const pairs = await Promise.all(
         imageRows.map(async (row) => {
-          const { data } = await supabase.storage
-            .from('documents')
-            .createSignedUrl(row.filePath, PREVIEW_URL_TTL_SEC)
-          return [row.id, data?.signedUrl ?? ''] as const
+          const url = await getDocumentsSignedUrl(supabase, row.filePath, PREVIEW_URL_TTL_SEC)
+          return [row.id, url ?? ''] as const
         }),
       )
       if (cancelled) return
@@ -130,27 +233,30 @@ export default function RadiologyViewer({
     startTransition(async () => {
       const result = await deleteRadiologyImage(id, filePath)
       if (!result?.error) {
+        invalidateDocumentsSignedUrlCache(filePath)
         setImages((prev) => prev.filter((img) => img.id !== id))
       }
     })
   }
 
   async function openLightbox(img: RadiologyImage) {
+    const supabase = createClient()
+    const LIGHTBOX_TTL_SEC = 60
+
     if (!isImageMime(img.mimeType)) {
-      // For non-images (PDF, DICOM) open in new tab as before
-      const supabase = createClient()
-      const { data } = await supabase.storage.from('documents').createSignedUrl(img.filePath, 60)
-      if (data?.signedUrl) window.open(data.signedUrl, '_blank')
+      const url = await getDocumentsSignedUrl(supabase, img.filePath, LIGHTBOX_TTL_SEC)
+      if (url) window.open(url, '_blank')
       return
     }
-    // For images, get a signed URL and show in modal
-    const supabase = createClient()
-    const { data } = await supabase.storage.from('documents').createSignedUrl(img.filePath, 60)
-    if (data?.signedUrl) {
+
+    const url =
+      previewUrlsById[img.id] ??
+      (await getDocumentsSignedUrl(supabase, img.filePath, LIGHTBOX_TTL_SEC))
+    if (url) {
       if (blAnalysisTeeth && blAnalysisTeeth.length > 0) {
-        setLightbox({ kind: 'bl', url: data.signedUrl, fileName: img.fileName })
+        setLightbox({ kind: 'bl', url, fileName: img.fileName })
       } else {
-        setLightbox({ kind: 'simple', url: data.signedUrl, fileName: img.fileName })
+        setLightbox({ kind: 'simple', url, fileName: img.fileName })
       }
     }
   }
@@ -188,55 +294,43 @@ export default function RadiologyViewer({
                   key={img.id}
                   className="bg-white rounded-xl border border-[#E4E7EE] shadow-[var(--shadow-card)] overflow-hidden group"
                 >
-                  <button
-                    type="button"
-                    onClick={() => openLightbox(img)}
-                    className="w-full h-28 bg-[#F7F9FC] flex items-center justify-center text-3xl hover:bg-[#E9EBEF] transition-colors relative overflow-hidden"
-                  >
-                    {isImageMime(img.mimeType) && previewUrlsById[img.id] ? (
-                      <>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={previewUrlsById[img.id]}
-                          alt={img.fileName}
-                          className="absolute inset-0 w-full h-full object-cover"
-                        />
-                      </>
-                    ) : (
-                      <span aria-hidden className="relative z-0">
-                        {isImageMime(img.mimeType) ? '🩻' : '📄'}
-                      </span>
-                    )}
-                    <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none">
-                      <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
-                    </span>
-                  </button>
-                  <div className="p-2">
-                    <p className="text-xs font-medium text-[#030213] truncate">{img.fileName}</p>
-                    <p className="text-[10px] text-[#717182]">
-                      {new Date(img.createdAt).toLocaleDateString('en-GB')}
-                      {img.fileSize ? ` · ${formatBytes(img.fileSize)}` : ''}
-                    </p>
-                  </div>
-                  <div className="px-2 pb-2 flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 text-[10px] h-6"
-                      onClick={() => openLightbox(img)}
-                    >
-                      View
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="text-[10px] h-6 text-[#d4183d] hover:text-[#d4183d] hover:bg-red-50"
-                      disabled={isPending}
-                      onClick={() => handleDelete(img.id, img.filePath)}
-                    >
-                      Delete
-                    </Button>
-                  </div>
+                  {isImageMime(img.mimeType) && previewUrlsById[img.id] ? (
+                    <>
+                      <RadiologyGalleryThumb
+                        key={previewUrlsById[img.id]}
+                        url={previewUrlsById[img.id]}
+                        fileName={img.fileName}
+                        onClick={() => openLightbox(img)}
+                      />
+                      <RadiologyGalleryCardActions
+                        img={img}
+                        isPending={isPending}
+                        onOpen={() => openLightbox(img)}
+                        onDelete={() => handleDelete(img.id, img.filePath)}
+                      />
+                    </>
+                  ) : isImageMime(img.mimeType) ? (
+                    <RadiologyGalleryCardSkeleton />
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openLightbox(img)}
+                        className="w-full h-28 bg-[#F7F9FC] flex items-center justify-center hover:bg-[#E9EBEF] transition-colors relative overflow-hidden text-[#717182]"
+                      >
+                        <FileText className="size-9 opacity-70" aria-hidden />
+                        <span className="absolute inset-0 z-10 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors pointer-events-none">
+                          <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                        </span>
+                      </button>
+                      <RadiologyGalleryCardActions
+                        img={img}
+                        isPending={isPending}
+                        onOpen={() => openLightbox(img)}
+                        onDelete={() => handleDelete(img.id, img.filePath)}
+                      />
+                    </>
+                  )}
                 </div>
               ))}
             </div>
@@ -252,7 +346,7 @@ export default function RadiologyViewer({
         }}
       >
         <DialogContent
-          className="max-h-[90vh] overflow-y-auto sm:max-w-3xl"
+          className="min-h-[min(72vh,680px)] max-h-[90vh] overflow-y-auto sm:max-w-3xl"
           showCloseButton
         >
           {lightbox?.kind === 'bl' && blAnalysisTeeth ? (

@@ -7,6 +7,136 @@ function toPercent(value: number, total: number): string {
   return `${((value / total) * 100).toFixed(4)}%`
 }
 
+/** Reserved viewport so the dialog height does not collapse before the image decodes. */
+const EMBEDDED_IMAGE_MIN_HEIGHT = 'min-h-[min(52vh,520px)]'
+
+function ToothBoundingOverlays({
+  imgDims,
+  teeth,
+  threshold,
+}: {
+  imgDims: { w: number; h: number }
+  teeth: BLTooth[]
+  threshold: number
+}) {
+  return teeth.map((tooth) => {
+    const { x1, y1, x2, y2 } = tooth.bounding_box
+    const visible = tooth.confidence >= threshold
+    return (
+      <div
+        key={tooth.tooth_id}
+        className="absolute border-2 border-teal-500 rounded overflow-hidden transition-opacity duration-200"
+        style={{
+          left: toPercent(x1, imgDims.w),
+          top: toPercent(y1, imgDims.h),
+          width: toPercent(x2 - x1, imgDims.w),
+          height: toPercent(y2 - y1, imgDims.h),
+          opacity: visible ? 1 : 0,
+          pointerEvents: visible ? 'auto' : 'none',
+        }}
+        aria-label={`Tooth ${tooth.tooth_id} bounding box`}
+      >
+        <span
+          className={`absolute -top-5 left-0 text-white text-[9px] font-semibold px-1 py-0.5 rounded whitespace-nowrap transition-colors duration-200 ${
+            tooth.confidence >= threshold ? 'bg-teal-600' : 'bg-rose-500'
+          }`}
+        >
+          T{tooth.tooth_id} · {Math.round(tooth.confidence * 100)}%
+        </span>
+
+        {(['CEJ_left', 'CEJ_right'] as const).map((kp) => {
+          const point = tooth.keypoints[kp]
+          if (point.confidence < threshold) return null
+          return (
+            <div
+              key={kp}
+              className="absolute w-2 h-2 rounded-full bg-teal-400 border border-white -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: toPercent(point.x - x1, x2 - x1),
+                top: toPercent(point.y - y1, y2 - y1),
+              }}
+              title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
+            />
+          )
+        })}
+
+        {(['BL_left', 'BL_right'] as const).map((kp) => {
+          const point = tooth.keypoints[kp]
+          if (point.confidence < threshold) return null
+          return (
+            <div
+              key={kp}
+              className="absolute w-2 h-2 rounded-full bg-amber-400 border border-white -translate-x-1/2 -translate-y-1/2"
+              style={{
+                left: toPercent(point.x - x1, x2 - x1),
+                top: toPercent(point.y - y1, y2 - y1),
+              }}
+              title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
+            />
+          )
+        })}
+      </div>
+    )
+  })
+}
+
+function EmbeddedRadiologyImageStage({
+  imageUrl,
+  teeth,
+  threshold,
+}: {
+  imageUrl: string
+  teeth: BLTooth[]
+  threshold: number
+}) {
+  const [isImageLoaded, setIsImageLoaded] = useState(false)
+  const [imgDims, setImgDims] = useState<{ w: number; h: number } | null>(null)
+  const imgRef = useRef<HTMLImageElement>(null)
+
+  function handleIntrinsicLoad() {
+    if (imgRef.current) {
+      setImgDims({
+        w: imgRef.current.naturalWidth,
+        h: imgRef.current.naturalHeight,
+      })
+    }
+  }
+
+  return (
+    <div
+      className={`relative w-full max-w-3xl mx-auto overflow-hidden rounded-xl ${EMBEDDED_IMAGE_MIN_HEIGHT}`}
+    >
+      <div
+        aria-hidden
+        className={`absolute inset-0 z-0 bg-slate-200/80 animate-pulse transition-opacity duration-200 ${
+          isImageLoaded ? 'opacity-0' : 'opacity-100'
+        }`}
+      />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={imgRef}
+        src={imageUrl}
+        alt="Dental X-ray"
+        onLoad={() => {
+          setIsImageLoaded(true)
+          handleIntrinsicLoad()
+        }}
+        onError={() => {
+          setIsImageLoaded(true)
+          handleIntrinsicLoad()
+        }}
+        className={`relative z-1 block w-full h-auto rounded-xl transition-opacity duration-200 ${
+          isImageLoaded ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+
+      {imgDims ? (
+        <ToothBoundingOverlays imgDims={imgDims} teeth={teeth} threshold={threshold} />
+      ) : null}
+    </div>
+  )
+}
+
 export function BLRadiologyOverlay({
   imageUrl,
   teeth,
@@ -42,10 +172,7 @@ export function BLRadiologyOverlay({
       ? { boxShadow: 'var(--shadow-card)', border: '1px solid var(--border)' }
       : undefined
 
-  const imageWrapClass =
-    variant === 'embedded'
-      ? 'relative w-full max-w-3xl mx-auto'
-      : 'relative w-1/2'
+  const imageWrapClass = 'relative w-1/2'
 
   return (
     <div className={shellClass} style={shellStyle}>
@@ -92,87 +219,35 @@ export function BLRadiologyOverlay({
 
           {/* Image width: half on tab card, near-full in modal */}
           <div className="flex justify-center">
-            <div className={imageWrapClass}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                ref={imgRef}
-                src={imageUrl}
-                alt="Dental X-ray"
-                onLoad={handleImageLoad}
-                className="w-full rounded-xl block"
+            {variant === 'embedded' ? (
+              <EmbeddedRadiologyImageStage
+                key={imageUrl}
+                imageUrl={imageUrl}
+                teeth={teeth}
+                threshold={threshold}
               />
+            ) : (
+              <div className={imageWrapClass}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  ref={imgRef}
+                  src={imageUrl}
+                  alt="Dental X-ray"
+                  onLoad={handleImageLoad}
+                  className="w-full rounded-xl block"
+                />
 
-              {/* Bounding boxes — all rendered, opacity controlled by confidence vs threshold */}
-              {imgDims &&
-                teeth.map((tooth) => {
-                  const { x1, y1, x2, y2 } = tooth.bounding_box
-                  const visible = tooth.confidence >= threshold
-                  return (
-                    <div
-                      key={tooth.tooth_id}
-                      className="absolute border-2 border-teal-500 rounded overflow-hidden transition-opacity duration-200"
-                      style={{
-                        left: toPercent(x1, imgDims.w),
-                        top: toPercent(y1, imgDims.h),
-                        width: toPercent(x2 - x1, imgDims.w),
-                        height: toPercent(y2 - y1, imgDims.h),
-                        opacity: visible ? 1 : 0,
-                        pointerEvents: visible ? 'auto' : 'none',
-                      }}
-                      aria-label={`Tooth ${tooth.tooth_id} bounding box`}
-                    >
-                      {/* Label — confidence turns red when near/below threshold */}
-                      <span
-                        className={`absolute -top-5 left-0 text-white text-[9px] font-semibold px-1 py-0.5 rounded whitespace-nowrap transition-colors duration-200 ${
-                          tooth.confidence >= threshold ? 'bg-teal-600' : 'bg-rose-500'
-                        }`}
-                      >
-                        T{tooth.tooth_id} · {Math.round(tooth.confidence * 100)}%
-                      </span>
-
-                      {/* CEJ keypoints — teal dots */}
-                      {(['CEJ_left', 'CEJ_right'] as const).map((kp) => {
-                        const point = tooth.keypoints[kp]
-                        if (point.confidence < threshold) return null
-                        return (
-                          <div
-                            key={kp}
-                            className="absolute w-2 h-2 rounded-full bg-teal-400 border border-white -translate-x-1/2 -translate-y-1/2"
-                            style={{
-                              left: toPercent(point.x - x1, x2 - x1),
-                              top: toPercent(point.y - y1, y2 - y1),
-                            }}
-                            title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
-                          />
-                        )
-                      })}
-
-                      {/* BL keypoints — amber dots */}
-                      {(['BL_left', 'BL_right'] as const).map((kp) => {
-                        const point = tooth.keypoints[kp]
-                        if (point.confidence < threshold) return null
-                        return (
-                          <div
-                            key={kp}
-                            className="absolute w-2 h-2 rounded-full bg-amber-400 border border-white -translate-x-1/2 -translate-y-1/2"
-                            style={{
-                              left: toPercent(point.x - x1, x2 - x1),
-                              top: toPercent(point.y - y1, y2 - y1),
-                            }}
-                            title={`${kp}: ${(point.confidence * 100).toFixed(0)}%`}
-                          />
-                        )
-                      })}
-                    </div>
-                  )
-                })}
-            </div>
+                {imgDims ? (
+                  <ToothBoundingOverlays imgDims={imgDims} teeth={teeth} threshold={threshold} />
+                ) : null}
+              </div>
+            )}
           </div>
         </>
       )}
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-3">
+      <div className="flex items-center gap-4 mt-3 flex-wrap">
         <div className="flex items-center gap-1.5">
           <div className="w-2 h-2 rounded-full bg-teal-400 border border-white ring-1 ring-teal-500" aria-hidden="true" />
           <span className="text-[11px] text-slate-500">CEJ</span>
